@@ -12,7 +12,6 @@ import org.apache.spark.ml.evaluation.RegressionEvaluator
 import org.apache.spark.ml.recommendation.ALS
 
 /* import org.apache.spark.ml.recommendation.ALS.Rating */
-
 val Array(training, test) = ratings.randomSplit(Array(0.8, 0.2))
 
 // Build the recommendation model using ALS on the training data
@@ -33,13 +32,8 @@ val userRecs = model.recommendForAllUsers(10)
 // Generate top 10 user recommendations for each movie
 val movieRecs = model.recommendForAllItems(10)
 
-// Generate top 10 movie recommendations for a specified set of users
-val users = ratings.select(als.getUserCol).distinct().limit(3)
-val userSubsetRecs = model.recommendForUserSubset(users, 10)
-// Generate top 10 user recommendations for a specified set of movies
-val movies = ratings.select(als.getItemCol).distinct().limit(3)
-val movieSubSetRecs = model.recommendForItemSubset(movies, 10)
+val df1 = userRecs.select($"userId", explode($"recommendations")).toDF( "userId", "recommendation")
+val df2 = df1.select( $"userId", col("recommendation")("movieId").as("movieId"), col("recommendation")("rating").as("rating") )
+val df3 = df2.map( r => ( r.getInt(0), r.getInt(1), r.getFloat(2).toDouble ) ).toDF( "userID", "movieId", "rating" )
+df3.write.format("com.mongodb.spark.sql.DefaultSource").mode("overwrite").option("collection", "perUser").save()
 
-def mapRecommendation
-
-userSubsetRecs.write.format("com.mongodb.spark.sql.DefaultSource").mode("overwrite").option("collection", "perUser").save()
