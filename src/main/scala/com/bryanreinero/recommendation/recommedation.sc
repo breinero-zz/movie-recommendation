@@ -22,18 +22,5 @@ val model = als.fit(training)
 // Note we set cold start strategy to 'drop' to ensure we don't get NaN evaluation metrics
 model.setColdStartStrategy("drop")
 val predictions = model.transform(test)
-
-val evaluator = new RegressionEvaluator().setMetricName("rmse").setLabelCol("rating").setPredictionCol("prediction")
-val rmse = evaluator.evaluate(predictions)
-println(s"Root-mean-square error = $rmse")
-
-// Generate top 10 movie recommendations for each user
-val userRecs = model.recommendForAllUsers(10)
-// Generate top 10 user recommendations for each movie
-val movieRecs = model.recommendForAllItems(10)
-
-val df1 = userRecs.select($"userId", explode($"recommendations")).toDF( "userId", "recommendation")
-val df2 = df1.select( $"userId", col("recommendation")("movieId").as("movieId"), col("recommendation")("rating").as("rating") )
-val df3 = df2.map( r => ( r.getInt(0), r.getInt(1), r.getFloat(2).toDouble ) ).toDF( "userID", "movieId", "rating" )
-df3.write.format("com.mongodb.spark.sql.DefaultSource").mode("overwrite").option("collection", "perUser").save()
-
+val docs  = predictions.map( r => ( r.getInt(4), r.getInt(1),  r.getDouble(2) ) ).toDF( "userID", "movieId", "rating" )
+docs.write.format("com.mongodb.spark.sql.DefaultSource").mode("overwrite").option("collection", "recommendations").save()
